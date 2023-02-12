@@ -103,6 +103,37 @@ class MSCTDDataset(Dataset):
             sentiment = self.target_transform(sentiment)
         return {'text':text ,'image':image, 'sentiment':(sentiment)}
 ##########################################################################################################################################
+def face_detect(mode, data_loader, dir):
+    mtcnn = MTCNN(select_largest=False, post_process=False, device='cuda:0')
+    i = 0
+    face_sentiment = []
+    if (os.path.isdir(f'face_{mode}')==0):
+      os.mkdir(f'face_{mode}')
+
+    for batch in data_loader:
+      images = batch['image'].numpy()
+      sentiments = batch['sentiment'].numpy()
+      img_snt = zip(images,sentiments) 
+
+      for img,snt in img_snt:
+        boxes, probs = mtcnn.detect(img,landmarks=False)
+        try:
+            boxes = np.array(boxes,dtype='uint64')
+            for x1,y1,x2,y2 in boxes:
+                face = img[y1:y2, x1:x2, :]
+                face = cv2.resize(face,(40,60))
+                cv2.imwrite(f'face_{mode}/{i}.jpg',cv2.cvtColor(face, cv2.COLOR_RGB2BGR))
+                face_sentiment.append(snt)
+                i+=1
+        except:
+              se=5
+
+    with open(f"face_{mode}/face_{mode}.txt", 'w') as output:
+        for row in face_sentiment:
+          output.write(str(row) + '\n')
+    os.system(f'zip -r {dir}/face_{mode}.zip face_{mode}')
+    os.system(f'rm -r face_{mode}')   
+ ##########################################################################################################################################
 # Defining the Neural Network Layers, Neurons and Activation Function
 class CNN1(nn.Module):
     def __init__(self, p = 0):
