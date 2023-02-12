@@ -103,36 +103,41 @@ class MSCTDDataset(Dataset):
             sentiment = self.target_transform(sentiment)
         return {'text':text ,'image':image, 'sentiment':(sentiment)}
 ##########################################################################################################################################
-def face_detect(mode, data_loader, dir):
-    mtcnn = MTCNN(select_largest=False, post_process=False, device='cuda:0')
-    i = 0
-    face_sentiment = []
-    if (os.path.isdir(f'face_{mode}')==0):
-      os.mkdir(f'face_{mode}')
+class faceDataset(Dataset):
+    def __init__(self, mode, dir, transform=None, target_transform=None, resize=None):
+        self.mode = mode
+        os.system(f'unzip -n {dir}/face_{self.mode}.zip')
+        
+        file1 = open(f'face_{self.mode}/face_{self.mode}.txt', 'r')
+        Lines = file1.readlines()
+        file1.close()
+        label = []
+        for line in Lines:
+            line = line.strip()
+            label.append(int(line))         
+        self.sentiment = np.array(label)
 
-    for batch in data_loader:
-      images = batch['image'].numpy()
-      sentiments = batch['sentiment'].numpy()
-      img_snt = zip(images,sentiments) 
+        
+        self.transform = transform
+        self.target_transform = target_transform
+        self.resize = resize
+        
+    def __len__(self):
+        return len(self.sentiment)
 
-      for img,snt in img_snt:
-        boxes, probs = mtcnn.detect(img,landmarks=False)
-        try:
-            boxes = np.array(boxes,dtype='uint64')
-            for x1,y1,x2,y2 in boxes:
-                face = img[y1:y2, x1:x2, :]
-                face = cv2.resize(face,(40,60))
-                cv2.imwrite(f'face_{mode}/{i}.jpg',cv2.cvtColor(face, cv2.COLOR_RGB2BGR))
-                face_sentiment.append(snt)
-                i+=1
-        except:
-              se=5
+    def __getitem__(self, idx):
+        img_path = os.path.join(f'face_{self.mode}', f'{idx}.jpg')
+        image = cv2.imread(img_path)
+        image = cv2.cvtColor(image , cv2.COLOR_BGR2RGB)
+        sentiment = self.sentiment[idx] 
+        if self.resize:
+              image = cv2.resize(image, self.resize) 
 
-    with open(f"face_{mode}/face_{mode}.txt", 'w') as output:
-        for row in face_sentiment:
-          output.write(str(row) + '\n')
-    os.system(f'zip -r {dir}/face_{mode}.zip face_{mode}')
-    os.system(f'rm -r face_{mode}')   
+        if self.transform:
+            image = self.transform(image)
+        if self.target_transform:
+            sentiment = self.target_transform(sentiment)
+        return {'image':image, 'sentiment':(sentiment)}
  ##########################################################################################################################################
 # Defining the Neural Network Layers, Neurons and Activation Function
 class CNN1(nn.Module):
