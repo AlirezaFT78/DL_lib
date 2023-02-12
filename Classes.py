@@ -10,7 +10,7 @@ import torch.nn as nn
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torchvision import transforms
-from torch.utils.data import Dataset , DataLoade
+from torch.utils.data import Dataset , DataLoader
 
 class MSCTDDataset(Dataset):
     def __init__(self, img_dir, mode , transform=None, target_transform=None,resize = None):
